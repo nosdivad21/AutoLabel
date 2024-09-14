@@ -1,0 +1,1 @@
+del /S /q C:\FastPack\labels\*

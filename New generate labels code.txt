@@ -1,0 +1,121 @@
+Private Sub Command26_Click()
+
+DeleteOldLabels
+
+sSleep (1500)
+
+On Error GoTo oops
+ DoCmd.Hourglass True
+ Application.Echo True, "Generating Piece labels"
+ 
+ Me.Dirty = False
+ Dim db As Database, rst As Recordset, strSQL As String
+ Set db = CurrentDb
+ strSQL = "SELECT tblHousePeices.lngHouseReceiptIdx, tblHousePeices.lngLength, tblHousePeices.lngWidth, tblHousePeices.lngheight, tblHousePeices.lngweight, " & _
+          "tblHousePeices.txtType, tblHousePeices.lngQty, tblHousePeices.txtLocation, TblFieldDest.TxtDestName, TblClients.txtClientName, TblClients.ctrClientIndex, tblPurchaseOrders.txtDestPO, tblPurchaseOrders.txtPonumber, " & _
+          "tblHouseReceipts.txtHousereceiptnumber, tblHouseReceipts.txtPonumber AS listedpo, tblHouseReceipts.lngPoIdx, tblHousePeices.ctrPieceIdx " & _
+          "FROM (((tblHousePeices LEFT JOIN tblHouseReceipts ON tblHousePeices.lngHouseReceiptIdx = tblHouseReceipts.ctrHouseReceipt) " & _
+          "LEFT JOIN TblFieldDest ON tblHouseReceipts.lngfielddest = TblFieldDest.CtrDestIdx) LEFT JOIN TblClients ON tblHouseReceipts.lngclientIdx = " & _
+          "TblClients.ctrClientIndex) LEFT JOIN tblPurchaseOrders ON tblHouseReceipts.lngPoIdx = tblPurchaseOrders.ctrPOidx " & _
+          "WHERE (((tblHousePeices.lngHouseReceiptIdx) = " & Me.ctrHouseReceipt & "))ORDER BY tblHousePeices.ctrPieceIdx;"
+
+
+Set rst = db.OpenRecordset(strSQL, dbOpenSnapshot, dbSeeChanges)
+
+
+If rst.EOF Then
+MsgBox "No Labels to Print", vbInformation + vbOKOnly, "Fast Pack"
+DoCmd.Hourglass False
+Application.Echo True
+
+Exit Sub
+Else
+
+
+
+Dim i As Integer, x As Integer, hfileout As Long, strlabel As String, z As Integer
+i = 1
+Dim strpieces As String, totweight As Long
+Do Until rst.EOF
+z = z + rst!lngQty
+totweight = totweight + (rst!lngQty * rst!lngWeight)
+
+rst.MoveNext
+
+Loop
+strpieces = totweight & " LBS" & " " & strpieces
+If Len(strpieces) > 30 Then
+strpieces = Left(strpieces, 30)
+End If
+Dim strbackpath As String
+On Error Resume Next
+Kill (strbackpath & "*.zpl")
+On Error GoTo oops
+rst.MoveFirst
+Do Until rst.EOF
+hfileout = FreeFile
+
+strbackpath = "C:\FastPack\labels\"
+If Dir(strbackpath, vbDirectory) = "" Then
+  
+  MkDir strbackpath
+End If
+Dim DestPO As String
+For x = 1 To rst!lngQty
+strpieces = totweight & " LBS " & rst!txtType & " " & i & " of " & z
+Open strbackpath & i & ".zpl" For Output Access Write As hfileout
+strlabel = "^XA" & vbCrLf
+strlabel = strlabel & "^FO80,60^A0N,140^FD" & rst!txtHousereceiptnumber & "^FS" & vbCrLf
+strlabel = strlabel & "^FO60,180^A0N,60^FD" & rst!txtClientName & "^FS" & vbCrLf
+strlabel = strlabel & "^FO60,240^A0N,60^FD" & rst!TxtDestName & "^FS" & vbCrLf
+If IsNull(rst!txtPOnumber) Then
+strlabel = strlabel & "^FO60,300^A0N,60^FD" & "PO: " & rst!listedpo & "^FS" & vbCrLf
+DestPO = "N/A"
+Else
+strlabel = strlabel & "^FO60,300^A0N,60^FD" & "PO: " & rst!txtPOnumber & "^FS" & vbCrLf
+DestPO = Nz(rst!txtDestPO, "")
+End If
+strlabel = strlabel & "^FO60,360^A0N,60^FD" & totweight & " LBS" & "^FS" & vbCrLf
+strlabel = strlabel & "^FO60,420^A0N,60^FD" & rst!txtType & "^FS" & vbCrLf
+strlabel = strlabel & "^FO60,480^A0N,60^FD" & i & " of " & z & "^FS" & vbCrLf
+strlabel = strlabel & "^FO60,540^A0N,60^FD" & "Location: " & rst!txtlocation & "^FS" & vbCrLf
+strlabel = strlabel & "^XZ" & vbCrLf
+If rst!ctrClientIndex = 341 Then
+strlabel = strlabel & DestPO & vbCrLf
+Else
+strlabel = strlabel & " " & vbCrLf
+End If
+
+Print #hfileout, strlabel
+
+Close hfileout
+i = i + 1
+
+Next
+rst.MoveNext
+
+Loop
+rst.Close
+Set rst = Nothing
+Set db = Nothing
+
+PrintLabels
+
+DoCmd.Hourglass False
+Application.Echo True
+MsgBox "Label Run is Completed, please open the txt files in notepad and print each one.", vbOKOnly + vbInformation, "Fast Pack"
+
+
+End If
+Dim myPath As String
+myPath = "C:\FastPack\copy.bat"
+Call Shell(myPath, 1)
+ 
+ 
+ Exit Sub
+oops:
+ MsgBox "Unexpected error - " & Err.Number & vbCr & vbCr & Error$, vbCritical, "Fast Pack"
+Resume Next
+
+
+End Sub

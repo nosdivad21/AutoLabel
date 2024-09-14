@@ -1,0 +1,7 @@
+Public Sub PrintLabels()
+ 
+Dim myPath2 As String
+myPath2 = "C:\FastPack\autoprint.bat"
+Call Shell(myPath2, 1)
+ 
+End Sub

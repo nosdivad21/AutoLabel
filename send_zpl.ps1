@@ -1,5 +1,5 @@
 # Define the printer's IP address and port
-$printerIP = "10.100.51.15"
+$printerIP = "redacted"
 $printerPort = 6101
 
 # Define the directory containing ZPL files
